@@ -14,15 +14,15 @@ import re
 
 from rich.console import Console
 
-from noctyx.agent.extract import update_graph
-from noctyx.config import Config
-from noctyx.core.budget import Budget
-from noctyx.core.evidence import EvidenceStore
-from noctyx.core.findings import Finding, FindingStore, RetestStatus
-from noctyx.core.graph import AssetGraph
-from noctyx.llm.prompts import SYSTEM, build_user_turn
-from noctyx.llm.provider import LLM
-from noctyx.tools.registry import Registry
+from nirbhed.agent.extract import update_graph
+from nirbhed.config import Config
+from nirbhed.core.budget import Budget
+from nirbhed.core.evidence import EvidenceStore
+from nirbhed.core.findings import Finding, FindingStore, RetestStatus
+from nirbhed.core.graph import AssetGraph
+from nirbhed.llm.prompts import SYSTEM, build_user_turn
+from nirbhed.llm.provider import LLM
+from nirbhed.tools.registry import Registry
 
 _JSON_BLOCK = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 _BARE_JSON = re.compile(r"(\{.*\})", re.DOTALL)
@@ -72,7 +72,7 @@ class Agent:
         last_obs = "(none — begin with reconnaissance)"
         stop_reason = "completed"
 
-        self.console.print(f"[bold cyan]noctyx[/] target=[yellow]{target}[/] "
+        self.console.print(f"[bold cyan]nirbhed[/] target=[yellow]{target}[/] "
                            f"tools={len(self.registry.available())}")
 
         while True:

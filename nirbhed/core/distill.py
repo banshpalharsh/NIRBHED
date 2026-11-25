@@ -1,4 +1,4 @@
-"""Output distillation — the heart of Noctyx's token frugality.
+"""Output distillation — the heart of Nirbhed's token frugality.
 
 Raw security-tool output is enormous and mostly noise: banners, progress bars,
 ANSI codes, repeated scan lines. Feeding that straight to an LLM wastes tokens

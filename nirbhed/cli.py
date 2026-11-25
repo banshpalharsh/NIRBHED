@@ -1,10 +1,10 @@
-"""Noctyx CLI.
+"""Nirbhed CLI.
 
-  noctyx mcp                      start the MCP server (plug into Claude Desktop; no API key)
-  noctyx run <target>            autonomous agent pentest (needs an API key)
-  noctyx exec <tool> <target>    run a single tool directly — no LLM, zero tokens
-  noctyx tools                   list available tools (+ what's missing)
-  noctyx doctor                  show config, providers and installed binaries
+  nirbhed mcp                      start the MCP server (plug into Claude Desktop; no API key)
+  nirbhed run <target>            autonomous agent pentest (needs an API key)
+  nirbhed exec <tool> <target>    run a single tool directly — no LLM, zero tokens
+  nirbhed tools                   list available tools (+ what's missing)
+  nirbhed doctor                  show config, providers and installed binaries
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from noctyx.config import Config
-from noctyx.version import __version__
+from nirbhed.config import Config
+from nirbhed.version import __version__
 
-app = typer.Typer(add_completion=False, help="Noctyx — token-frugal offensive-security AI agent + MCP server.")
+app = typer.Typer(add_completion=False, help="Nirbhed — token-frugal offensive-security AI agent + MCP server.")
 console = Console()
 
 
@@ -39,16 +39,16 @@ def _load_dotenv() -> None:
 def _config(scope: str | None, approval: str | None) -> Config:
     _load_dotenv()
     if scope:
-        os.environ["NOCTYX_SCOPE"] = scope
+        os.environ["NIRBHED_SCOPE"] = scope
     if approval:
-        os.environ["NOCTYX_APPROVAL"] = approval
+        os.environ["NIRBHED_APPROVAL"] = approval
     return Config.from_env()
 
 
 @app.command()
 def version() -> None:
     """Print version."""
-    console.print(f"noctyx {__version__}")
+    console.print(f"nirbhed {__version__}")
 
 
 @app.command()
@@ -58,7 +58,7 @@ def mcp(
 ) -> None:
     """Start the MCP server over stdio (for Claude Desktop / any MCP client, no API key)."""
     cfg = _config(scope, approval)
-    from noctyx.mcp.server import serve
+    from nirbhed.mcp.server import serve
     serve(cfg)
 
 
@@ -82,8 +82,8 @@ def run(
         scope = f"{host},*.{host}" if host else ""
     cfg = _config(scope, approval)
 
-    from noctyx.agent.loop import Agent
-    from noctyx.core.report import write_reports
+    from nirbhed.agent.loop import Agent
+    from nirbhed.core.report import write_reports
 
     agent = Agent(cfg, console=console, allow_gated=yes)
     result = agent.run(target, objective)
@@ -101,7 +101,7 @@ def run(
 
 @app.command()
 def exec(
-    tool: str = typer.Argument(..., help="tool name (see `noctyx tools`)"),
+    tool: str = typer.Argument(..., help="tool name (see `nirbhed tools`)"),
     target: str = typer.Argument("", help="target host/url"),
     extra: str = typer.Option("", help="extra raw flags passed to the tool"),
     scope: str = typer.Option(None, help="comma-separated allowed host globs"),
@@ -109,7 +109,7 @@ def exec(
 ) -> None:
     """Run ONE tool directly, with distillation + caching, no LLM involved (zero tokens)."""
     cfg = _config(scope, "aggressive" if yes else "balanced")
-    from noctyx.tools.registry import Registry
+    from nirbhed.tools.registry import Registry
 
     reg = Registry(cfg)
     params = {"target": target} if target else {}
@@ -131,11 +131,11 @@ def tools(
 ) -> None:
     """List tools in the catalog."""
     cfg = Config.from_env()
-    from noctyx.tools.registry import Registry
+    from nirbhed.tools.registry import Registry
 
     reg = Registry(cfg)
     specs = list(reg.specs.values()) if all_ else reg.available()
-    table = Table(title=f"Noctyx tools ({len(specs)} shown)")
+    table = Table(title=f"Nirbhed tools ({len(specs)} shown)")
     table.add_column("tool", style="cyan")
     table.add_column("cat")
     table.add_column("tier")
@@ -156,11 +156,11 @@ def doctor() -> None:
     """Show configuration, provider status and tool availability."""
     _load_dotenv()
     cfg = Config.from_env()
-    from noctyx.tools.registry import Registry
+    from nirbhed.tools.registry import Registry
 
     reg = Registry(cfg)
     avail = reg.available()
-    console.print("[bold]Noctyx doctor[/]")
+    console.print("[bold]Nirbhed doctor[/]")
     console.print(f"version       : {__version__}")
     console.print(f"primary LLM   : {cfg.primary.model or '-'} @ {cfg.primary.base_url or '-'} "
                   f"({'key set' if cfg.primary.api_key else 'NO KEY'})")

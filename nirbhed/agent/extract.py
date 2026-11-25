@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from noctyx.core.graph import AssetGraph
+from nirbhed.core.graph import AssetGraph
 
 _URL = re.compile(r"https?://[^\s'\"<>]+")
 _PORT = re.compile(r"\b(\d{1,5})/(tcp|udp)\b.*\bopen\b", re.IGNORECASE)

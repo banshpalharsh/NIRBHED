@@ -6,8 +6,8 @@ import json
 import time
 from pathlib import Path
 
-from noctyx.core.evidence import EvidenceStore
-from noctyx.core.findings import FindingStore
+from nirbhed.core.evidence import EvidenceStore
+from nirbhed.core.findings import FindingStore
 
 
 def _sev_emoji(sev: str) -> str:
@@ -18,7 +18,7 @@ def to_markdown(target: str, findings: FindingStore, evidence: EvidenceStore,
                 budget_summary: str, cache_stats: dict) -> str:
     fs = findings.all()
     lines = [
-        f"# Noctyx Pentest Report — {target}",
+        f"# Nirbhed Pentest Report — {target}",
         f"_Generated {time.strftime('%Y-%m-%d %H:%M:%S')}_",
         "",
         "## Summary",

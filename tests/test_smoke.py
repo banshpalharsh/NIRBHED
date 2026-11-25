@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from noctyx.config import Config
-from noctyx.core.cache import ResultCache
-from noctyx.core.distill import distill
-from noctyx.core.findings import Finding, FindingStore
-from noctyx.core.scope import TIER_EXPLOIT, TIER_RECON, ScopeGate
-from noctyx.tools.base import ParamSpec, ToolSpec
-from noctyx.tools.registry import Registry
+from nirbhed.config import Config
+from nirbhed.core.cache import ResultCache
+from nirbhed.core.distill import distill
+from nirbhed.core.findings import Finding, FindingStore
+from nirbhed.core.scope import TIER_EXPLOIT, TIER_RECON, ScopeGate
+from nirbhed.tools.base import ParamSpec, ToolSpec
+from nirbhed.tools.registry import Registry
 
 
 def test_distill_strips_noise_and_caps():

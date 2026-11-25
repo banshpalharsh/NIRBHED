@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from noctyx.config import ProviderConfig
+from nirbhed.config import ProviderConfig
 
 
 @dataclass
@@ -33,13 +33,13 @@ class LLM:
         except ImportError as e:  # pragma: no cover
             raise RuntimeError(
                 "Standalone agent mode needs the OpenAI client. "
-                "Install with: pip install 'noctyx[agent]'"
+                "Install with: pip install 'nirbhed[agent]'"
             ) from e
 
         if not primary.usable:
             raise RuntimeError(
-                "No usable LLM provider. Set NOCTYX_API_KEY + NOCTYX_MODEL "
-                "(and NOCTYX_BASE_URL for non-OpenAI endpoints)."
+                "No usable LLM provider. Set NIRBHED_API_KEY + NIRBHED_MODEL "
+                "(and NIRBHED_BASE_URL for non-OpenAI endpoints)."
             )
         self._OpenAI = OpenAI
         self.temperature = temperature

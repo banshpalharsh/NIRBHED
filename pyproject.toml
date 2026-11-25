@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "noctyx"
+name = "nirbhed"
 version = "0.1.0"
 description = "Autonomous, token-frugal offensive-security AI agent and MCP server"
 readme = "README.md"
@@ -33,13 +33,13 @@ all = ["openai>=1.40", "mcp>=1.2,<2.0"]
 dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
-noctyx = "noctyx.cli:app"
+nirbhed = "nirbhed.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/BaaRai/noctyx"
+Homepage = "https://github.com/banshpalharsh/nirbhed"
 
 [tool.hatch.build.targets.wheel]
-packages = ["noctyx"]
+packages = ["nirbhed"]
 
 [tool.ruff]
 line-length = 100

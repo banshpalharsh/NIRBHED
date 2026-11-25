@@ -1,8 +1,10 @@
 <div align="center">
 
-# 🦉 NOCTYX
+# 🗡️ NIRBHED
 
 **An autonomous, token-frugal offensive-security AI agent — and an MCP server.**
+
+> **nirbheda** (निर्भेद) — Sanskrit for *piercing / penetration*. The tool pierces an attack surface, proves what it finds, and keeps the receipts.
 
 Point it at a target. It runs real security tools, reasons like a pentester, proves what it finds, and writes an evidence-bound report. Drive it with **Claude Desktop (no API key)** or run it **headless with any cheap LLM key** (DeepSeek, Claude, OpenAI, OpenRouter, Ollama…).
 
@@ -12,19 +14,19 @@ Point it at a target. It runs real security tools, reasons like a pentester, pro
 
 ---
 
-## Why Noctyx exists
+## Why Nirbhed exists
 
-Autonomous-pentest tools are powerful but *expensive to run* — they shovel raw scanner output into an LLM and burn tokens. Noctyx treats **token frugality as a first-class subsystem** so long, deep runs stay cheap, while refusing to compromise on result quality.
+Autonomous-pentest tools are powerful but *expensive to run* — they shovel raw scanner output into an LLM and burn tokens. Nirbhed treats **token frugality as a first-class subsystem** so long, deep runs stay cheap, while refusing to compromise on result quality.
 
 It unifies the ideas behind three excellent projects into one coherent engine:
 
-| Idea | Source inspiration | In Noctyx |
+| Idea | Source inspiration | In Nirbhed |
 |------|--------------------|-----------|
-| Plug a full toolbelt into an MCP client (no API key — the client is the brain) | HexStrike-AI | `noctyx mcp` |
-| Autonomous "acts like a hacker" loop that validates findings with PoCs | Strix | `noctyx run` |
+| Plug a full toolbelt into an MCP client (no API key — the client is the brain) | HexStrike-AI | `nirbhed mcp` |
+| Autonomous "acts like a hacker" loop that validates findings with PoCs | Strix | `nirbhed run` |
 | Planner/worker loop, evidence binding ("keeps its receipts"), retest, budgets, scope gates | ARTEX | core engine |
 
-> Noctyx is an independent, clean-room implementation in Python (MIT). It is *inspired by* those projects, not a fork of them.
+> Nirbhed is an independent, clean-room implementation in Python (MIT). It is *inspired by* those projects, not a fork of them.
 
 ---
 
@@ -32,10 +34,10 @@ It unifies the ideas behind three excellent projects into one coherent engine:
 
 ### 1) MCP mode — Claude Desktop, **no API key**
 
-Claude Desktop is the reasoning brain; Noctyx exposes its entire toolbelt + finding/evidence/report machinery over MCP (stdio). Nothing to pay for beyond your Claude subscription.
+Claude Desktop is the reasoning brain; Nirbhed exposes its entire toolbelt + finding/evidence/report machinery over MCP (stdio). Nothing to pay for beyond your Claude subscription.
 
 ```bash
-pipx install "noctyx[mcp]"     # or: pip install "noctyx[mcp]"
+pipx install "nirbhed[mcp]"     # or: pip install "nirbhed[mcp]"
 ```
 
 Add to **Claude Desktop → Settings → Developer → Edit Config** (`claude_desktop_config.json`):
@@ -43,39 +45,39 @@ Add to **Claude Desktop → Settings → Developer → Edit Config** (`claude_de
 ```json
 {
   "mcpServers": {
-    "noctyx": {
-      "command": "noctyx",
+    "nirbhed": {
+      "command": "nirbhed",
       "args": ["mcp"],
-      "env": { "NOCTYX_SCOPE": "example.com,*.example.com", "NOCTYX_APPROVAL": "balanced" }
+      "env": { "NIRBHED_SCOPE": "example.com,*.example.com", "NIRBHED_APPROVAL": "balanced" }
     }
   }
 }
 ```
 
-Restart Claude Desktop and ask it to *"recon example.com with noctyx, then record findings and write a report."* Every installed tool shows up as a callable MCP tool, plus `noctyx_catalog`, `noctyx_record_finding`, and `noctyx_report`.
+Restart Claude Desktop and ask it to *"recon example.com with nirbhed, then record findings and write a report."* Every installed tool shows up as a callable MCP tool, plus `nirbhed_catalog`, `nirbhed_record_finding`, and `nirbhed_report`.
 
 ### 2) Agent mode — headless, **bring a cheap API key**
 
 Any OpenAI-compatible endpoint works. Point `base_url` + `model` at whatever is cheapest for you.
 
 ```bash
-pipx install "noctyx[agent]"
-cp .env.example .env     # set NOCTYX_API_KEY / NOCTYX_BASE_URL / NOCTYX_MODEL
+pipx install "nirbhed[agent]"
+cp .env.example .env     # set NIRBHED_API_KEY / NIRBHED_BASE_URL / NIRBHED_MODEL
 
-noctyx run https://example.com
+nirbhed run https://example.com
 ```
 
 ```env
 # DeepSeek (very cheap, default)
-NOCTYX_API_KEY=sk-...
-NOCTYX_BASE_URL=https://api.deepseek.com
-NOCTYX_MODEL=deepseek-chat
+NIRBHED_API_KEY=sk-...
+NIRBHED_BASE_URL=https://api.deepseek.com
+NIRBHED_MODEL=deepseek-chat
 
 # ...or Claude, OpenAI, OpenRouter, Groq, local Ollama — same three vars.
 # Optional automatic failover to a second provider:
-NOCTYX_FALLBACK_API_KEY=...
-NOCTYX_FALLBACK_BASE_URL=https://api.anthropic.com/v1
-NOCTYX_FALLBACK_MODEL=claude-haiku-4-5
+NIRBHED_FALLBACK_API_KEY=...
+NIRBHED_FALLBACK_BASE_URL=https://api.anthropic.com/v1
+NIRBHED_FALLBACK_MODEL=claude-haiku-4-5
 ```
 
 ---
@@ -109,20 +111,20 @@ Plus **finding dedup** (`core/findings.py`): the agent never re-sees or re-repor
 ## CLI
 
 ```bash
-noctyx mcp                      # start MCP server (Claude Desktop; no API key)
-noctyx run <target>             # autonomous agent pentest (needs API key)
-noctyx exec nmap_quick <host>   # run ONE tool directly — no LLM, zero tokens
-noctyx tools --all              # list the catalog + what's installed
-noctyx doctor                   # config, provider status, tool availability
+nirbhed mcp                      # start MCP server (Claude Desktop; no API key)
+nirbhed run <target>             # autonomous agent pentest (needs API key)
+nirbhed exec nmap_quick <host>   # run ONE tool directly — no LLM, zero tokens
+nirbhed tools --all              # list the catalog + what's installed
+nirbhed doctor                   # config, provider status, tool availability
 ```
 
-`noctyx exec` is handy on its own: distillation + caching + scope gating for any wrapped tool, with no LLM in the loop at all.
+`nirbhed exec` is handy on its own: distillation + caching + scope gating for any wrapped tool, with no LLM in the loop at all.
 
 ---
 
 ## Install the security tools
 
-Noctyx *orchestrates* external binaries; install the ones you need (it autodetects what's present — `noctyx tools --all` shows gaps). On Kali most are a `sudo apt install` or `go install` away; httpx/nuclei/katana/subfinder/ffuf come from ProjectDiscovery.
+Nirbhed *orchestrates* external binaries; install the ones you need (it autodetects what's present — `nirbhed tools --all` shows gaps). On Kali most are a `sudo apt install` or `go install` away; httpx/nuclei/katana/subfinder/ffuf come from ProjectDiscovery.
 
 ---
 

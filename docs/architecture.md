@@ -1,13 +1,13 @@
 # Architecture
 
-Noctyx is **one engine with two front-ends**. Both front-ends call the same
+Nirbhed is **one engine with two front-ends**. Both front-ends call the same
 `Registry.run()` pipeline, so scope gating, caching, distillation and evidence
 behave identically whether a human-driven MCP client or the headless agent is in
 control.
 
 ```
-front-ends ─┬─ noctyx mcp    → MCP server (stdio). Claude Desktop is the brain. No API key.
-            └─ noctyx run    → autonomous Agent. Any OpenAI-compatible LLM. Cheap key.
+front-ends ─┬─ nirbhed mcp    → MCP server (stdio). Claude Desktop is the brain. No API key.
+            └─ nirbhed run    → autonomous Agent. Any OpenAI-compatible LLM. Cheap key.
                                      │
                                      ▼  shared engine
   Registry.run(name, params, allow_gated)
@@ -47,7 +47,7 @@ front-ends ─┬─ noctyx mcp    → MCP server (stdio). Claude Desktop is the
 ## Why near-stateless turns
 
 A conventional agent appends every observation to a growing transcript, so turn
-*n* pays for turns *1..n-1* again. Noctyx instead reconstructs a **compact state**
+*n* pays for turns *1..n-1* again. Nirbhed instead reconstructs a **compact state**
 each turn — asset graph summary, findings brief, last result, recent action list —
 and sends `system + state`. The state is the memory. Per-turn cost stays roughly
 flat, which is what makes deep runs affordable on pay-per-token models.

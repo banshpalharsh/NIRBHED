@@ -9,7 +9,7 @@ import os
 import subprocess
 import tempfile
 
-from noctyx.tools.base import ParamSpec, ToolSpec
+from nirbhed.tools.base import ParamSpec, ToolSpec
 
 # Declared as ToolSpecs with binary="" so autodetect treats them as always-on.
 HTTP_TOOL = ToolSpec(
@@ -77,7 +77,7 @@ def run_python(params: dict) -> tuple[str, int]:
     code = params.get("code", "")
     if not code.strip():
         return "[empty code]", -2
-    d = tempfile.mkdtemp(prefix="noctyx_poc_")
+    d = tempfile.mkdtemp(prefix="nirbhed_poc_")
     path = os.path.join(d, "poc.py")
     with open(path, "w") as f:
         f.write(code)

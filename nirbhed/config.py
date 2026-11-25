@@ -66,29 +66,29 @@ class Config:
 
     # Paths
     workdir: Path = field(default_factory=lambda: Path(os.getcwd()))
-    state_dir: Path = field(default_factory=lambda: Path(os.getcwd()) / ".noctyx")
+    state_dir: Path = field(default_factory=lambda: Path(os.getcwd()) / ".nirbhed")
 
     @classmethod
     def from_env(cls) -> Config:
         c = cls(
             primary=ProviderConfig(
-                api_key=_env("NOCTYX_API_KEY"),
-                base_url=_env("NOCTYX_BASE_URL", "https://api.deepseek.com"),
-                model=_env("NOCTYX_MODEL", "deepseek-chat"),
+                api_key=_env("NIRBHED_API_KEY"),
+                base_url=_env("NIRBHED_BASE_URL", "https://api.deepseek.com"),
+                model=_env("NIRBHED_MODEL", "deepseek-chat"),
             ),
             fallback=ProviderConfig(
-                api_key=_env("NOCTYX_FALLBACK_API_KEY"),
-                base_url=_env("NOCTYX_FALLBACK_BASE_URL"),
-                model=_env("NOCTYX_FALLBACK_MODEL"),
+                api_key=_env("NIRBHED_FALLBACK_API_KEY"),
+                base_url=_env("NIRBHED_FALLBACK_BASE_URL"),
+                model=_env("NIRBHED_FALLBACK_MODEL"),
             ),
-            max_tokens=_env_int("NOCTYX_MAX_TOKENS", 120_000),
-            max_turns=_env_int("NOCTYX_MAX_TURNS", 40),
-            max_seconds=_env_int("NOCTYX_MAX_SECONDS", 1800),
-            distill_max_chars=_env_int("NOCTYX_DISTILL_MAX_CHARS", 2000),
-            cache=_env("NOCTYX_CACHE", "1") != "0",
-            scope=_split(_env("NOCTYX_SCOPE")),
-            deny=_split(_env("NOCTYX_DENY")),
-            approval=_env("NOCTYX_APPROVAL", "balanced") or "balanced",
+            max_tokens=_env_int("NIRBHED_MAX_TOKENS", 120_000),
+            max_turns=_env_int("NIRBHED_MAX_TURNS", 40),
+            max_seconds=_env_int("NIRBHED_MAX_SECONDS", 1800),
+            distill_max_chars=_env_int("NIRBHED_DISTILL_MAX_CHARS", 2000),
+            cache=_env("NIRBHED_CACHE", "1") != "0",
+            scope=_split(_env("NIRBHED_SCOPE")),
+            deny=_split(_env("NIRBHED_DENY")),
+            approval=_env("NIRBHED_APPROVAL", "balanced") or "balanced",
         )
         c.state_dir.mkdir(parents=True, exist_ok=True)
         return c

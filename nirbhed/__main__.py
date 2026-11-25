@@ -1,4 +1,4 @@
-from noctyx.cli import app
+from nirbhed.cli import app
 
 if __name__ == "__main__":
     app()

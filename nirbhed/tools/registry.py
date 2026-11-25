@@ -11,13 +11,13 @@ from pathlib import Path
 
 import yaml
 
-from noctyx.config import Config
-from noctyx.core.cache import ResultCache
-from noctyx.core.distill import distill
-from noctyx.core.evidence import Evidence, EvidenceStore
-from noctyx.core.scope import ScopeGate
-from noctyx.tools.base import ExecResult, ParamSpec, ToolSpec, run_process
-from noctyx.tools.builtins import BUILTIN_RUNNERS, BUILTIN_SPECS
+from nirbhed.config import Config
+from nirbhed.core.cache import ResultCache
+from nirbhed.core.distill import distill
+from nirbhed.core.evidence import Evidence, EvidenceStore
+from nirbhed.core.scope import ScopeGate
+from nirbhed.tools.base import ExecResult, ParamSpec, ToolSpec, run_process
+from nirbhed.tools.builtins import BUILTIN_RUNNERS, BUILTIN_SPECS
 
 _CATALOG = Path(__file__).parent.parent / "data" / "tool_specs.yaml"
 

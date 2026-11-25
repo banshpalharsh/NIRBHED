@@ -8,7 +8,7 @@ Security tools emit huge, repetitive output. Before anything reaches the LLM:
 - dedupe consecutive identical lines (scanners repeat heavily)
 - keep lines matching **per-tool salience regexes** (open ports, URLs, CVE ids,
   nuclei severities, HTTP statuses, discovery verbs) plus the tail (final totals)
-- hard-cap to `NOCTYX_DISTILL_MAX_CHARS` and annotate how much was elided
+- hard-cap to `NIRBHED_DISTILL_MAX_CHARS` and annotate how much was elided
 
 A 2,000-line nuclei/nmap dump becomes a few dozen high-signal lines.
 
@@ -27,19 +27,19 @@ higher severity and union of evidence). The agent never re-sees or re-reports a
 vuln, so the state stays small.
 
 ### 5. Hard budgets — `core/budget.py`
-`NOCTYX_MAX_TOKENS`, `NOCTYX_MAX_TURNS`, `NOCTYX_MAX_SECONDS` stop a run cleanly.
+`NIRBHED_MAX_TOKENS`, `NIRBHED_MAX_TURNS`, `NIRBHED_MAX_SECONDS` stop a run cleanly.
 A run can never silently overspend.
 
 ## Knobs
 
 | Env var | Default | Effect |
 |---------|---------|--------|
-| `NOCTYX_DISTILL_MAX_CHARS` | 2000 | max chars of a single observation |
-| `NOCTYX_CACHE` | 1 | 0 disables the result cache |
-| `NOCTYX_MAX_TOKENS` | 120000 | total token ceiling per run |
-| `NOCTYX_MAX_TURNS` | 40 | max loop iterations |
-| `NOCTYX_MAX_SECONDS` | 1800 | wall-clock ceiling |
+| `NIRBHED_DISTILL_MAX_CHARS` | 2000 | max chars of a single observation |
+| `NIRBHED_CACHE` | 1 | 0 disables the result cache |
+| `NIRBHED_MAX_TOKENS` | 120000 | total token ceiling per run |
+| `NIRBHED_MAX_TURNS` | 40 | max loop iterations |
+| `NIRBHED_MAX_SECONDS` | 1800 | wall-clock ceiling |
 
 ## Tip: run tools without the LLM at all
-`noctyx exec <tool> <target>` gives you distillation + caching + scope gating with
+`nirbhed exec <tool> <target>` gives you distillation + caching + scope gating with
 **no LLM in the loop** — perfect for the cheap, deterministic parts of a workflow.

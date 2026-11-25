@@ -1,4 +1,4 @@
-# Noctyx declarative tool catalog.
+# Nirbhed declarative tool catalog.
 # Add a tool = add a block here (no Python needed). Each becomes callable in both
 # MCP mode and agent mode, with scope-gating, caching, distillation and evidence
 # applied automatically. {target} is substituted; {extra} appends raw flags

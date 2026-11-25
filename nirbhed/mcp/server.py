@@ -1,24 +1,24 @@
 """MCP server — the NO-API-KEY path.
 
-Claude Desktop (or any MCP client) is the reasoning brain; Noctyx exposes its
+Claude Desktop (or any MCP client) is the reasoning brain; Nirbhed exposes its
 whole toolbelt + the finding/evidence/report machinery over MCP stdio. Scope
 gating and output distillation still apply, so even here the client receives
 token-cheap, on-target results.
 
 Every installed catalog tool is published as its own MCP tool. Plus meta tools:
-  noctyx_catalog         list all tools (incl. gated / not-installed)
-  noctyx_record_finding  store a vulnerability with evidence refs
-  noctyx_report          write markdown+json reports and return paths
+  nirbhed_catalog         list all tools (incl. gated / not-installed)
+  nirbhed_record_finding  store a vulnerability with evidence refs
+  nirbhed_report          write markdown+json reports and return paths
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from noctyx.config import Config
-from noctyx.core.findings import Finding, FindingStore, RetestStatus
-from noctyx.core.report import write_reports
-from noctyx.tools.registry import Registry
+from nirbhed.config import Config
+from nirbhed.core.findings import Finding, FindingStore, RetestStatus
+from nirbhed.core.report import write_reports
+from nirbhed.tools.registry import Registry
 
 
 def _schema_for(spec) -> dict:
@@ -42,12 +42,12 @@ def build_server(config: Config):
         from mcp.server import Server
     except ImportError as e:  # pragma: no cover
         raise RuntimeError(
-            "MCP mode needs the MCP SDK. Install with: pip install 'noctyx[mcp]'"
+            "MCP mode needs the MCP SDK. Install with: pip install 'nirbhed[mcp]'"
         ) from e
 
     registry = Registry(config)
     findings = FindingStore()
-    server = Server("noctyx")
+    server = Server("nirbhed")
 
     @server.list_tools()
     async def list_tools() -> list:
@@ -60,12 +60,12 @@ def build_server(config: Config):
             ))
         tools += [
             types.Tool(
-                name="noctyx_catalog",
-                description="List every Noctyx tool, including gated ones and ones not installed on this host.",
+                name="nirbhed_catalog",
+                description="List every Nirbhed tool, including gated ones and ones not installed on this host.",
                 inputSchema={"type": "object", "properties": {}},
             ),
             types.Tool(
-                name="noctyx_record_finding",
+                name="nirbhed_record_finding",
                 description="Record a validated vulnerability finding (with evidence ids from prior tool runs).",
                 inputSchema={
                     "type": "object",
@@ -85,7 +85,7 @@ def build_server(config: Config):
                 },
             ),
             types.Tool(
-                name="noctyx_report",
+                name="nirbhed_report",
                 description="Write markdown + json pentest reports for all recorded findings; returns file paths.",
                 inputSchema={
                     "type": "object",
@@ -103,14 +103,14 @@ def build_server(config: Config):
     async def call_tool(name: str, arguments: dict) -> list:
         arguments = arguments or {}
 
-        if name == "noctyx_catalog":
+        if name == "nirbhed_catalog":
             txt = registry.catalog_signature(only_available=False)
             missing = registry.missing_binaries()
             if missing:
                 txt += "\n\n[not installed on this host]: " + ", ".join(missing)
             return [types.TextContent(type="text", text=txt)]
 
-        if name == "noctyx_record_finding":
+        if name == "nirbhed_record_finding":
             f = Finding(
                 title=arguments.get("title", "untitled"),
                 severity=arguments.get("severity", "info"),
@@ -132,7 +132,7 @@ def build_server(config: Config):
                      f"(total findings: {findings.count()})",
             )]
 
-        if name == "noctyx_report":
+        if name == "nirbhed_report":
             out_dir = Path(arguments.get("out_dir") or (config.workdir / "runs"))
             paths = write_reports(
                 out_dir, arguments.get("target", "target"), findings,
