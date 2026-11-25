@@ -38,6 +38,7 @@ def _schema_for(spec) -> dict:
 
 def build_server(config: Config):
     try:
+        import anyio  # ships with the MCP SDK
         from mcp import types
         from mcp.server import Server
     except ImportError as e:  # pragma: no cover
@@ -143,9 +144,12 @@ def build_server(config: Config):
                 text="reports written:\n" + "\n".join(f"- {k}: {v}" for k, v in paths.items()),
             )]
 
-        # otherwise: a catalog tool
+        # otherwise: a catalog tool. Run off the event loop so a slow scan
+        # (nmap, nuclei, sqlmap) doesn't freeze the whole MCP server.
         approve = bool(arguments.pop("approve", False))
-        res = registry.run(name, arguments, allow_gated=approve)
+        res = await anyio.to_thread.run_sync(
+            lambda: registry.run(name, arguments, allow_gated=approve)
+        )
         if res.ok:
             return [types.TextContent(type="text", text=res.output)]
         return [types.TextContent(type="text", text=f"[error] {res.error}\n{res.output}".strip())]

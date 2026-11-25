@@ -7,6 +7,8 @@ applies the full pipeline: scope gate -> cache -> execute -> distill -> evidence
 
 from __future__ import annotations
 
+import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import yaml
@@ -83,30 +85,88 @@ class Registry:
     def run(self, name: str, params: dict | None = None,
             allow_gated: bool = False) -> ExecResult:
         params = params or {}
+        spec, blocked = self._gate(name, params, allow_gated)
+        if blocked is not None:
+            return blocked
+        return self._do_run(spec, name, params)
+
+    def run_many(self, calls: list[dict], allow_gated: bool = False,
+                 max_workers: int = 5) -> list[tuple[str, ExecResult]]:
+        """Execute several independent tool calls concurrently.
+
+        Each call is {"tool": name, "params": {...}}. Gating (availability,
+        scope/approval) is applied per call BEFORE anything runs. Results come
+        back in the SAME order as `calls`, each tagged with its tool name. This
+        is the recon/scan fan-out speed win — subprocess tools run in parallel
+        threads while each still goes through cache -> distill -> evidence.
+        """
+        prepared = []
+        for call in calls:
+            nm = call.get("tool", "")
+            pr = call.get("params", {}) or {}
+            spec, blocked = self._gate(nm, pr, allow_gated)
+            prepared.append((nm, pr, spec, blocked))
+
+        results: list[tuple[str, ExecResult]] = [
+            (nm, blocked) for (nm, _pr, _spec, blocked) in prepared
+        ]
+        pending = [(i, nm, pr, spec) for i, (nm, pr, spec, blocked)
+                   in enumerate(prepared) if blocked is None]
+        if pending:
+            workers = max(1, min(max_workers, len(pending)))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futs = {pool.submit(self._do_run, spec, nm, pr): (i, nm)
+                        for (i, nm, pr, spec) in pending}
+                for fut in as_completed(futs):
+                    i, nm = futs[fut]
+                    try:
+                        results[i] = (nm, fut.result())
+                    except Exception as e:  # noqa: BLE001
+                        results[i] = (nm, ExecResult(False, "", 0, nm, error=str(e)))
+        return results
+
+    def _gate(self, name: str, params: dict,
+              allow_gated: bool) -> tuple[ToolSpec | None, ExecResult | None]:
+        """(spec, None) if allowed to run; (spec, error-ExecResult) if blocked."""
         spec = self.specs.get(name)
         if not spec:
-            return ExecResult(False, "", 0, name, error=f"unknown tool '{name}'")
-
+            return None, ExecResult(False, "", 0, name, error=f"unknown tool '{name}'")
         if spec.binary and not spec.available():
-            return ExecResult(False, "", 0, name,
-                              error=f"'{spec.binary}' not installed on host")
-
+            return spec, ExecResult(False, "", 0, name,
+                                    error=f"'{spec.binary}' not installed on host")
         target = params.get("target", "")
-        # scope + approval gate (built-in tools with no target skip host scope)
         if target:
             allowed, reason = self.scope.check(target, spec.tier)
             if not allowed and "out of scope" in reason:
-                return ExecResult(False, "", 0, name, error=reason)
+                return spec, ExecResult(False, "", 0, name, error=reason)
             if not allowed and not allow_gated:
-                return ExecResult(False, "", 0, name, error=reason)
+                return spec, ExecResult(False, "", 0, name, error=reason)
         elif spec.tier in ("exploit", "destructive") and not allow_gated:
-            return ExecResult(False, "", 0, name,
-                              error=f"approval required ({spec.tier} tier)")
+            return spec, ExecResult(False, "", 0, name,
+                                    error=f"approval required ({spec.tier} tier)")
+        return spec, None
 
-        # cache
+    def _do_run(self, spec: ToolSpec, name: str, params: dict) -> ExecResult:
+        """cache -> execute -> distill -> evidence. Thread-safe for run_many."""
+        target = params.get("target", "")
+
+        # cache hit: replay distilled body + rc, re-binding a FRESH evidence record
+        # so evidence ids stay valid even across sessions (the old bug: never put).
         cached = self.cache.get(name, params)
         if cached is not None:
-            return ExecResult(True, cached, len(cached), f"{name}(cached)", cached=True)
+            try:
+                payload = json.loads(cached)
+                body, rc = payload["body"], payload["rc"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                body, rc = cached, 0
+            ev = Evidence.make(name, f"{name} {target}".strip(), target, body, len(body))
+            self.evidence.add(ev)
+            return ExecResult(
+                ok=(rc in (0, None)),
+                output=f"[{ev.id}] rc={rc} (cached)\n{body}",
+                raw_len=len(body), command=f"{name} {target}".strip(), cached=True,
+                error="" if rc in (0, None) else f"exit {rc}",
+            )
 
         # execute
         if name in BUILTIN_RUNNERS:
@@ -114,7 +174,7 @@ class Registry:
             call_params = dict(params)
             call_params["_timeout"] = spec.timeout
             raw, rc = runner(call_params)
-            command = f"{name} {params.get('target', '')}".strip()
+            command = f"{name} {target}".strip()
         else:
             argv, err = spec.render(params)
             if argv is None:
@@ -122,14 +182,17 @@ class Registry:
             command = " ".join(argv)
             raw, rc = run_process(argv, spec.timeout)
 
-        # distill + evidence
         condensed = distill(raw, self.config.distill_max_chars, spec.salience)
         ev = Evidence.make(name, command, target, condensed, len(raw))
         self.evidence.add(ev)
-        header = f"[{ev.id}] rc={rc}"
+
+        # cache only real completions (rc -1 timeout / -2 launch-fail are transient)
+        if rc not in (-1, -2):
+            self.cache.put(name, params, json.dumps({"rc": rc, "body": condensed}))
+
         return ExecResult(
-            ok=(rc == 0 or rc is None),
-            output=f"{header}\n{condensed}",
+            ok=(rc in (0, None)),
+            output=f"[{ev.id}] rc={rc}\n{condensed}",
             raw_len=len(raw),
             command=command,
             error="" if rc in (0, None) else f"exit {rc}",

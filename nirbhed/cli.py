@@ -24,16 +24,24 @@ console = Console()
 
 
 def _load_dotenv() -> None:
-    """Minimal .env loader (no extra dependency)."""
-    env = Path.cwd() / ".env"
-    if not env.exists():
-        return
-    for line in env.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    """Minimal .env loader (no extra dependency). Searches, in priority order:
+    ./.env, ~/.config/nirbhed/.env, ~/.nirbhed.env. Values already in the real
+    environment win; among files, the current directory wins. This is what lets
+    a globally pipx-installed `nirbhed` still find your API key."""
+    candidates = [
+        Path.cwd() / ".env",
+        Path.home() / ".config" / "nirbhed" / ".env",
+        Path.home() / ".nirbhed.env",
+    ]
+    for env in candidates:
+        if not env.exists():
             continue
-        k, v = line.split("=", 1)
-        os.environ.setdefault(k.strip(), v.strip())
+        for line in env.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
 
 
 def _config(scope: str | None, approval: str | None) -> Config:

@@ -22,6 +22,7 @@ Point it at a target. It runs real security tools, reasons like a pentester, pro
 
 ## Contents
 - [Why Nirbhed exists](#why-nirbhed-exists)
+- [Install](#install) · [**Getting Started guide →**](docs/getting-started.md)
 - [Two ways to run — one engine](#two-ways-to-run--one-engine)
 - [Token frugality — how it actually saves money](#token-frugality--how-it-actually-saves-money)
 - [What it does (capability map)](#what-it-does-capability-map)
@@ -48,15 +49,34 @@ It unifies the ideas behind three excellent projects into one coherent engine:
 
 ---
 
+## Install
+
+Nirbhed isn't on PyPI yet — install it straight from GitHub. **New here? Follow the step-by-step [Getting Started guide](docs/getting-started.md)** (Kali/Linux, API key placement, MCP — zero assumed knowledge).
+
+```bash
+# both run modes (recommended)
+pipx install "nirbhed[all] @ git+https://github.com/banshpalharsh/NIRBHED.git"
+
+# or just one mode:
+pipx install "nirbhed[agent] @ git+https://github.com/banshpalharsh/NIRBHED.git"   # standalone (API key)
+pipx install "nirbhed[mcp]   @ git+https://github.com/banshpalharsh/NIRBHED.git"   # MCP server
+
+# no pipx? clone and use pip (add --break-system-packages on Kali/Debian)
+git clone https://github.com/banshpalharsh/NIRBHED.git && cd NIRBHED
+pip install -e ".[all]"
+```
+
+Verify: `nirbhed doctor`.
+
+---
+
 ## Two ways to run — one engine
 
 ### 1) MCP mode — Claude Desktop, **no API key**
 
 Claude Desktop is the reasoning brain; Nirbhed exposes its entire toolbelt + finding/evidence/report machinery over MCP (stdio). Nothing to pay for beyond your Claude subscription.
 
-```bash
-pipx install "nirbhed[mcp]"     # or: pip install "nirbhed[mcp]"
-```
+> Claude Desktop runs on **Windows/macOS** (there is no official Linux build). On Linux, use any MCP-capable client, or just use agent mode below. Full setup: [docs/mcp-setup.md](docs/mcp-setup.md).
 
 Add to **Claude Desktop → Settings → Developer → Edit Config** (`claude_desktop_config.json`):
 
@@ -79,8 +99,10 @@ Restart Claude Desktop and ask it to *"recon example.com with nirbhed, then reco
 Any OpenAI-compatible endpoint works. Point `base_url` + `model` at whatever is cheapest for you.
 
 ```bash
-pipx install "nirbhed[agent]"
-cp .env.example .env     # set NIRBHED_API_KEY / NIRBHED_BASE_URL / NIRBHED_MODEL
+# put your key somewhere nirbhed looks: ./.env, ~/.config/nirbhed/.env, or ~/.nirbhed.env
+mkdir -p ~/.config/nirbhed && cp .env.example ~/.config/nirbhed/.env
+# edit that file: NIRBHED_API_KEY / NIRBHED_BASE_URL / NIRBHED_MODEL
+# (or just: export NIRBHED_API_KEY=sk-... before running)
 
 nirbhed run https://example.com
 ```
@@ -104,19 +126,31 @@ NIRBHED_FALLBACK_MODEL=claude-haiku-4-5
 
 This is the part worth reading. Four mechanisms, all on by default:
 
-1. **Output distillation** (`core/distill.py`) — raw tool output (banners, progress bars, ANSI, thousands of repeated scan lines) is stripped to high-signal lines using per-tool salience regexes, then hard-capped. The LLM sees ports/URLs/CVEs/statuses, not noise.
-2. **Content-addressed caching** (`core/cache.py`) — identical tool+args ⇒ the distilled result is replayed from disk. **Zero tokens, zero re-execution.**
+1. **Two-tier output distillation** (`core/distill.py`) — raw tool output (banners, progress bars, ANSI, log-level lines, thousands of repeated scan lines) is stripped, then ranked: concrete findings (CVEs, severities, open ports, URLs, HTTP statuses, IPs) are kept *ahead of* generic chatter, so a real finding can never be crowded out of the character budget. Hard-capped per observation.
+2. **Content-addressed caching** (`core/cache.py`) — identical tool+args ⇒ the distilled result is replayed from disk. **Zero tokens, zero re-execution.** (Evidence is re-bound on replay so report receipts stay valid.)
 3. **Near-stateless turns** (`agent/loop.py`) — instead of resending an ever-growing transcript, each turn sends the system prompt + a *compact running state* (asset graph + findings brief + recent actions + last result). Per-turn cost stays roughly flat instead of growing O(n).
 4. **Hard budgets** (`core/budget.py`) — token / turn / wall-clock caps stop a run cleanly before it can run away with your spend.
 
-Plus **finding dedup** (`core/findings.py`): the agent never re-sees or re-reports a vuln it already has, so the context window stays small.
+Plus **finding dedup** (`core/findings.py`): the agent never re-sees or re-reports a vuln it already has, and **parallel fan-out** (`registry.run_many`) runs independent recon/scan tools concurrently.
+
+### Measured (run `python scripts/benchmark.py` yourself)
+On a synthetic 4,000-line scan and 0.4s tools, on commodity hardware:
+
+| Mechanism | Result |
+|-----------|--------|
+| Distillation | **99.6%** fewer chars (~58,700 → ~210 est. tokens) — CVE + open-port lines retained |
+| Cache replay | **~1700×** faster than re-running (405 ms → 0.2 ms) |
+| Parallel fan-out (5 tools) | **~4.9×** faster (2.0 s → 0.4 s) |
+
+Numbers are produced by the live code, not hard-coded — reproduce them with the benchmark script.
 
 ---
 
 ## What it does (capability map)
 
-- **Autonomous loop**: reason → one tool → distilled observation → chain. Recon-first, then active, then exploitation.
-- **Proof before report**: crafts HTTP requests (`http_request`) and runs Python PoCs (`python_exploit`) to validate before recording a finding.
+- **Autonomous loop**: reason → tool(s) → distilled observation → chain. Recon-first, then active, then exploitation, with a stall detector that stops runaway/looping agents.
+- **Parallel execution**: independent recon/scan tools run concurrently in one `parallel` action.
+- **Proof before report + false-positive guard**: high/critical findings are *refused* unless backed by evidence ids; the agent must prove them with `http_request` / `python_exploit` first.
 - **Evidence binding**: every tool run is a timestamped, hashed `Evidence` record; findings cite evidence ids; reports show the receipts.
 - **Dual graphs**: a shared asset graph (root → subdomain → service → endpoint) + a coverage ledger of tested vs untested surface.
 - **Retest status**: findings carry `reproducible / fixed / cannot_confirm`.
