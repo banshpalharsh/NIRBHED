@@ -12,6 +12,7 @@ fix for every common failure, including the "No matching distribution" one.
 - [5. Mode B — MCP with Claude Desktop (no API key)](#5-mode-b--mcp-with-claude-desktop-no-api-key)
 - [6. Run a single tool (no LLM, zero tokens)](#6-run-a-single-tool-no-llm-zero-tokens)
 - [7. Reading the report](#7-reading-the-report)
+- [8. Updating Nirbhed](#8-updating-nirbhed)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -198,6 +199,75 @@ nirbhed run https://target.tld \
   - `aggressive` → recon + active + exploit auto-run.
   - destructive always needs explicit approval.
 
+### 4.5 Watch and steer it — the live dashboard
+
+When you run `nirbhed run`, it prints a line like:
+
+```
+live dashboard: http://127.0.0.1:8787  (chat / pause / stop / creds)
+```
+
+Open that URL in a browser. You get, updating live:
+- status, phase, elapsed time, and token/turn budget;
+- the **asset graph** (subdomains/services/endpoints) and coverage;
+- the **findings** table (severity, CWE, verified/suspected);
+- a scrolling **log** of what the agent is doing.
+
+And you can act on it, mid-engagement — this is the human-in-the-loop part:
+- **Chat box** → type instructions the agent obeys on its next step, e.g.
+  *"focus on the /api/v2 endpoints"*, *"skip bruteforce"*, *"try IDOR on the
+  order ids"*, *"wrap up and report"*.
+- **Pause / Resume / Stop** buttons → stop the test instantly, or hold it while
+  you check something.
+- **Inject credentials** panel → paste a cookie/token/header and hit Apply; the
+  agent immediately re-tests authenticated surface with it.
+
+Reopen the last run's dashboard any time (read-only):
+
+```bash
+nirbhed view
+```
+
+Turn the dashboard off with `nirbhed run ... --no-view`, or change the port with
+`--port 9000`.
+
+### 4.6 Authenticated testing (cookies / tokens / creds)
+
+Most real bugs (IDOR/BOLA, broken access control, privilege escalation) are behind
+a login. Give Nirbhed the session so it can test as a logged-in user. Four ways —
+use whichever fits:
+
+```bash
+# one-off flags
+nirbhed run https://app.target.tld \
+  --cookie "session=eyJ...; csrftoken=abc" \
+  --bearer "eyJhbGciOi..." \
+  -H "X-API-Key: 123" -H "X-Tenant: acme"
+
+# basic auth
+nirbhed run https://app.target.tld --basic "alice:s3cret"
+
+# a reusable file
+nirbhed run https://app.target.tld --auth-file auth.json
+```
+
+`auth.json`:
+```json
+{ "cookie": "session=eyJ...", "bearer": "eyJ...", "basic": "", "headers": { "X-API-Key": "123" } }
+```
+
+Or set them in your `.env` (`NIRBHED_COOKIE`, `NIRBHED_BEARER`, `NIRBHED_BASIC`,
+`NIRBHED_HEADERS`), or paste them into the dashboard while a run is going.
+
+How it's used: the creds are attached automatically to the built-in `http_request`
+tool and exposed to `python_exploit` PoCs as env vars (`NIRBHED_COOKIE`,
+`NIRBHED_BEARER`, `NIRBHED_HDR_X_API_KEY`, …). **They are never shown to the LLM** —
+the agent is only told "auth is configured" — so your session token can't leak into
+a model prompt.
+
+> Grab a cookie/token from your browser DevTools → Network tab → a request to the
+> app → Request Headers → copy the `Cookie:` / `Authorization:` value.
+
 ---
 
 ## 5. Mode B — MCP with Claude Desktop (no API key)
@@ -260,6 +330,32 @@ After `nirbhed run`, open `runs/<target>.md` (human-readable) or `runs/<target>.
 the **evidence** — the exact command and its captured output — so you can verify or
 hand it to a client. Findings without evidence are marked *unverified/suspected*;
 high/critical findings are only recorded once proven.
+
+---
+
+## 8. Updating Nirbhed
+
+New version pushed to GitHub? Pull it in one line.
+
+**If you installed with pipx:**
+```bash
+pipx reinstall nirbhed
+# (pipx remembers the GitHub source. If it ever forgets, reinstall it:)
+pipx install --force "nirbhed[all] @ git+https://github.com/banshpalharsh/NIRBHED.git"
+nirbhed version      # confirm the new version
+```
+
+**If you cloned the repo:**
+```bash
+cd NIRBHED
+git pull
+pip install -e ".[all]" --break-system-packages
+nirbhed version
+```
+
+Your API key and config are untouched by an update — they live in
+`~/.config/nirbhed/.env`, not inside the package. Pin a specific version by adding
+`@v0.3.0` (a git tag/branch) to the install URL.
 
 ---
 

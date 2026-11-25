@@ -148,6 +148,9 @@ Numbers are produced by the live code, not hard-coded — reproduce them with th
 
 ## What it does (capability map)
 
+- **Live web dashboard**: a localhost URL shows status, phase, budget, the asset graph, and findings in real time — no more flying blind.
+- **Human-in-the-loop**: chat to the agent mid-engagement to steer it ("focus on /api, skip bruteforce"), and **Pause / Resume / Stop** at any time.
+- **Authenticated testing**: inject cookies, bearer/JWT tokens, basic creds, or custom headers via CLI, env, or the dashboard — applied automatically to `http_request` and exposed to PoCs. Secrets are **never put in the LLM context**.
 - **Autonomous loop**: reason → tool(s) → distilled observation → chain. Recon-first, then active, then exploitation, with a stall detector that stops runaway/looping agents.
 - **Parallel execution**: independent recon/scan tools run concurrently in one `parallel` action.
 - **Proof before report + false-positive guard**: high/critical findings are *refused* unless backed by evidence ids; the agent must prove them with `http_request` / `python_exploit` first.
@@ -164,13 +167,15 @@ Numbers are produced by the live code, not hard-coded — reproduce them with th
 
 ```bash
 nirbhed mcp                      # start MCP server (Claude Desktop; no API key)
-nirbhed run <target>             # autonomous agent pentest (needs API key)
+nirbhed run <target>             # autonomous agent pentest + live dashboard (needs API key)
+nirbhed run <target> --cookie "session=..." --bearer <jwt> -H "X-API-Key: k"   # authenticated
+nirbhed view                     # reopen the dashboard for the most recent run
 nirbhed exec nmap_quick <host>   # run ONE tool directly — no LLM, zero tokens
 nirbhed tools --all              # list the catalog + what's installed
 nirbhed doctor                   # config, provider status, tool availability
 ```
 
-`nirbhed exec` is handy on its own: distillation + caching + scope gating for any wrapped tool, with no LLM in the loop at all.
+`nirbhed run` opens a dashboard at `http://127.0.0.1:8787` — watch findings live, **chat to steer the agent**, pause/stop, and inject credentials. `nirbhed exec` needs no LLM at all: distillation + caching + scope gating for any wrapped tool.
 
 ---
 

@@ -39,6 +39,13 @@ class Budget:
             return f"time budget reached ({int(self.elapsed)}s/{self.max_seconds}s)"
         return None
 
+    def as_dict(self) -> dict:
+        return {
+            "tokens_used": self.tokens_used, "max_tokens": self.max_tokens,
+            "turns_used": self.turns_used, "max_turns": self.max_turns,
+            "elapsed": int(self.elapsed), "max_seconds": self.max_seconds,
+        }
+
     def summary(self) -> str:
         return (
             f"tokens={self.tokens_used}/{self.max_tokens} "

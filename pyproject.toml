@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nirbhed"
-version = "0.2.0"
+version = "0.3.0"
 description = "Autonomous, token-frugal offensive-security AI agent and MCP server"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -44,3 +44,7 @@ packages = ["nirbhed"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer requires Option()/Argument() calls as parameter defaults.
+extend-immutable-calls = ["typer.Option", "typer.Argument"]

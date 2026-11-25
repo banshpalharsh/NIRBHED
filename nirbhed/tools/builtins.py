@@ -54,10 +54,14 @@ def run_http(params: dict) -> tuple[str, int]:
     url = params.get("target", "")
     method = (params.get("method") or "GET").upper()
     headers: dict[str, str] = {}
+    # configured auth first (cookie/bearer/basic/extra), so requests are authenticated
+    auth = params.get("_auth") or {}
+    for k, v in auth.items():
+        headers[k] = v
     for line in (params.get("headers") or "").splitlines():
         if ":" in line:
             k, v = line.split(":", 1)
-            headers[k.strip()] = v.strip()
+            headers[k.strip()] = v.strip()  # explicit header wins over auth default
     body = params.get("body") or None
     try:
         with httpx.Client(follow_redirects=False, timeout=20, verify=True) as c:
@@ -81,10 +85,14 @@ def run_python(params: dict) -> tuple[str, int]:
     path = os.path.join(d, "poc.py")
     with open(path, "w") as f:
         f.write(code)
+    # auth is exposed to the PoC as env vars (NIRBHED_COOKIE/BEARER/BASIC/HDR_*)
+    env = dict(os.environ)
+    env.update(params.get("_env") or {})
     try:
-        # -I: isolated mode (ignore env + cwd imports), safer PoC execution.
+        # -I: isolated mode (ignore cwd/PYTHON* imports), safer PoC execution.
+        # os.environ is still available, so injected auth env vars work.
         proc = subprocess.run(
-            ["python3", "-I", path],
+            ["python3", "-I", path], env=env,
             capture_output=True, text=True, timeout=params.get("_timeout", 60), check=False,
         )
         return (proc.stdout or "") + (proc.stderr or ""), proc.returncode

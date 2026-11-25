@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 from rich.console import Console
 
@@ -24,6 +25,7 @@ from nirbhed.core.budget import Budget
 from nirbhed.core.evidence import EvidenceStore
 from nirbhed.core.findings import Finding, FindingStore, RetestStatus
 from nirbhed.core.graph import AssetGraph
+from nirbhed.core.session import Inbox, RunState
 from nirbhed.llm.prompts import SYSTEM, build_user_turn
 from nirbhed.llm.provider import LLM
 from nirbhed.tools.registry import Registry
@@ -81,7 +83,8 @@ def _parse_action(text: str) -> dict | None:
 
 class Agent:
     def __init__(self, config: Config, console: Console | None = None,
-                 allow_gated: bool = False):
+                 allow_gated: bool = False, state: RunState | None = None,
+                 inbox: Inbox | None = None):
         self.config = config
         self.console = console or Console(stderr=True)
         self.allow_gated = allow_gated
@@ -92,15 +95,44 @@ class Agent:
         self.llm = LLM(config.primary, config.fallback)
         self.budget = Budget(config.max_tokens, config.max_turns, config.max_seconds)
         self._root = ""
+        self.state = state          # live viewer snapshot (optional)
+        self.inbox = inbox          # operator channel (optional)
+        self.directives: list[str] = []   # sticky operator instructions
+
+    def _phase_for(self, tool_name: str) -> str:
+        spec = self.registry.specs.get(tool_name)
+        tier = spec.tier if spec else "recon"
+        return {"exploit": "exploit", "destructive": "exploit", "active": "probe"}.get(tier, "recon")
+
+    def _sync(self, status: str | None = None, phase: str | None = None) -> None:
+        """Push current progress to the live viewer state (if attached)."""
+        if not self.state:
+            return
+        kw = {"budget": self.budget.as_dict(), "graph_text": self.graph.compact()}
+        if status:
+            kw["status"] = status
+        if phase:
+            kw["phase"] = phase
+        self.state.update(**kw)
+        self.state.set_findings([f.to_dict() for f in self.findings.all()])
 
     # ── state ────────────────────────────────────────────────────────────────
     def _state(self, recent: list[str], last_obs: str) -> str:
+        auth_note = ("AUTH: credentials ARE configured — http_request and "
+                     "python_exploit are authenticated automatically; test "
+                     "authenticated/authz surface (IDOR, privilege escalation).\n\n"
+                     if self.registry.auth.configured else "")
+        directive_note = ""
+        if self.directives:
+            directive_note = ("OPERATOR DIRECTIVES (follow these, newest last):\n"
+                              + "\n".join(f"- {d}" for d in self.directives[-8:]) + "\n\n")
         return (
-            f"ASSET GRAPH:\n{self.graph.compact()}\n\n"
-            f"FINDINGS SO FAR: {self.findings.brief()}\n\n"
-            "RECENT ACTIONS (newest last):\n" + ("\n".join(recent[-6:]) or "-") + "\n\n"
-            f"LAST RESULT:\n{last_obs or '-'}\n\n"
-            f"BUDGET: {self.budget.summary()}"
+            directive_note + auth_note
+            + f"ASSET GRAPH:\n{self.graph.compact()}\n\n"
+            + f"FINDINGS SO FAR: {self.findings.brief()}\n\n"
+            + "RECENT ACTIONS (newest last):\n" + ("\n".join(recent[-6:]) or "-") + "\n\n"
+            + f"LAST RESULT:\n{last_obs or '-'}\n\n"
+            + f"BUDGET: {self.budget.summary()}"
         )
 
     def _absorb(self, target: str, output: str) -> None:
@@ -148,7 +180,26 @@ class Agent:
         self.console.print(f"[bold cyan]nirbhed[/] target=[yellow]{target}[/] "
                            f"tools={len(self.registry.available())}")
 
+        self._sync(status="running", phase="recon")
+
         while True:
+            # ── operator channel (human-in-the-loop) ──────────────────────────
+            if self.inbox is not None:
+                if self.inbox.stopping:
+                    stop_reason = "stopped by operator"
+                    break
+                while self.inbox.paused and not self.inbox.stopping:
+                    self._sync(status="paused")
+                    time.sleep(0.4)
+                if self.inbox.stopping:
+                    stop_reason = "stopped by operator"
+                    break
+                for m in self.inbox.drain():
+                    self.directives.append(m)
+                    recent.append(f"[operator] {m}")
+                    if self.state:
+                        self.state.log_line(f"operator: {m}")
+
             over = self.budget.exceeded()
             if over:
                 stop_reason = over
@@ -157,6 +208,7 @@ class Agent:
                 stop_reason = "stalled (no progress after repeated invalid/empty turns)"
                 break
             self.budget.tick_turn()
+            self._sync(status="running")
 
             messages = [
                 {"role": "system", "content": SYSTEM},
@@ -181,6 +233,8 @@ class Agent:
             kind = action.get("action")
             thought = action.get("thought", "")
             self.console.print(f"[dim]t{self.budget.turns_used}[/] [green]{kind}[/] {thought}")
+            if self.state:
+                self.state.log_line(f"{kind}: {thought}")
 
             if kind == "finish":
                 stop_reason = action.get("reason", "agent finished")
@@ -191,6 +245,7 @@ class Agent:
                 last_obs = msg
                 recent.append(f"report -> {'ok' if stored else 'rejected'}")
                 stall = 0 if stored else stall + 1
+                self._sync(phase="report")
                 continue
 
             if kind == "tool":
@@ -205,6 +260,7 @@ class Agent:
                 last_obs = res.output if res.ok else f"TOOL ERROR ({name}): {res.error}"
                 tag = "cached" if res.cached else ("ok" if res.ok else "err")
                 recent.append(f"{name}({params.get('target', '')}) -> {tag}")
+                self._sync(phase=self._phase_for(name))
                 continue
 
             if kind == "parallel":
@@ -231,12 +287,17 @@ class Agent:
                 recent.append(f"parallel[{len(results)}]: "
                               + ", ".join(nm for nm, _ in results))
                 stall = 0 if any_ok else stall + 1
+                self._sync(phase="probe")
                 continue
 
             stall += 1
             last_obs = f"ERROR: unknown action '{kind}'."
             recent.append(f"(unknown action {kind})")
 
+        final_status = "stopped" if "stop" in stop_reason.lower() else "done"
+        if self.state:
+            self.state.update(status=final_status, stop_reason=stop_reason)
+            self._sync()
         return {
             "target": target,
             "stop_reason": stop_reason,

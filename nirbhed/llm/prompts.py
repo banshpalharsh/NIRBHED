@@ -20,6 +20,8 @@ RULES:
   Unproven observations may be reported as low/info and clearly marked suspected.
 - Avoid repeats: the state lists what you already ran. Don't rerun it unchanged.
 - Be token-frugal: rely on the running state; don't ask for long output to be repeated.
+- If OPERATOR DIRECTIVES appear in the state, obey them now — they come from the human running you (e.g. "focus on X", "skip bruteforce", "wrap up").
+- If AUTH is configured, prioritise authenticated-only bugs: IDOR/BOLA, broken access control, privilege escalation.
 
 REPLY FORMAT — output EXACTLY ONE fenced json block, nothing before or after:
 ```json

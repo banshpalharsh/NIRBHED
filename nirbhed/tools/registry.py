@@ -57,6 +57,7 @@ class Registry:
         self.cache = ResultCache(config.state_dir, enabled=config.cache)
         self.scope = ScopeGate(config.scope, config.deny, config.approval)
         self.evidence = EvidenceStore()
+        self.auth = config.auth
 
     # ── discovery ────────────────────────────────────────────────────────────
     def available(self, include_unavailable: bool = False) -> list[ToolSpec]:
@@ -173,6 +174,12 @@ class Registry:
             runner = BUILTIN_RUNNERS[name]
             call_params = dict(params)
             call_params["_timeout"] = spec.timeout
+            # inject configured auth so http_request/python_exploit hit authed surface
+            if self.auth.configured:
+                if name == "http_request":
+                    call_params["_auth"] = self.auth.header_map()
+                elif name == "python_exploit":
+                    call_params["_env"] = self.auth.env()
             raw, rc = runner(call_params)
             command = f"{name} {target}".strip()
         else:
