@@ -4,6 +4,12 @@
 
 **An autonomous, token-frugal offensive-security AI agent — and an MCP server.**
 
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-Claude%20Desktop-8A2BE2)](docs/mcp-setup.md)
+[![LLM](https://img.shields.io/badge/LLM-DeepSeek%20%7C%20Claude%20%7C%20OpenAI%20%7C%20Ollama-0b7285)](docs/token-optimization.md)
+[![Status](https://img.shields.io/badge/status-alpha-orange)]()
+
 > **nirbheda** (निर्भेद) — Sanskrit for *piercing / penetration*. The tool pierces an attack surface, proves what it finds, and keeps the receipts.
 
 Point it at a target. It runs real security tools, reasons like a pentester, proves what it finds, and writes an evidence-bound report. Drive it with **Claude Desktop (no API key)** or run it **headless with any cheap LLM key** (DeepSeek, Claude, OpenAI, OpenRouter, Ollama…).
@@ -11,6 +17,18 @@ Point it at a target. It runs real security tools, reasons like a pentester, pro
 `recon → active testing → exploitation → proof → report` — on a hard token/time/cost budget.
 
 </div>
+
+---
+
+## Contents
+- [Why Nirbhed exists](#why-nirbhed-exists)
+- [Two ways to run — one engine](#two-ways-to-run--one-engine)
+- [Token frugality — how it actually saves money](#token-frugality--how-it-actually-saves-money)
+- [What it does (capability map)](#what-it-does-capability-map)
+- [CLI](#cli)
+- [Install the security tools](#install-the-security-tools)
+- [Safety & legal](#safety--legal)
+- [Architecture](#architecture)
 
 ---
 
