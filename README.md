@@ -22,7 +22,7 @@ Point it at a target. It runs real security tools, reasons like a pentester, pro
 
 ## Contents
 - [Why Nirbhed exists](#why-nirbhed-exists)
-- [Install](#install) · [**Getting Started guide →**](docs/getting-started.md)
+- [Install](#install) · [**Getting Started guide →**](docs/getting-started.md) · [Android/Termux →](docs/android-termux.md)
 - [Two ways to run — one engine](#two-ways-to-run--one-engine)
 - [Token frugality — how it actually saves money](#token-frugality--how-it-actually-saves-money)
 - [What it does (capability map)](#what-it-does-capability-map)
@@ -65,6 +65,9 @@ pipx install "nirbhed[mcp]   @ git+https://github.com/banshpalharsh/NIRBHED.git"
 git clone https://github.com/banshpalharsh/NIRBHED.git && cd NIRBHED
 pip install -e ".[all]"
 ```
+
+**Android?** Agent mode runs on a phone via Termux — one-command setup and an
+A-to-Z guide in [docs/android-termux.md](docs/android-termux.md).
 
 Verify: `nirbhed doctor`.
 

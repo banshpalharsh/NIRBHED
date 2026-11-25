@@ -269,8 +269,10 @@ def doctor() -> None:
 
     reg = Registry(cfg)
     avail = reg.available()
+    on_termux = "com.termux" in os.environ.get("PREFIX", "") or bool(os.environ.get("TERMUX_VERSION"))
     console.print("[bold]Nirbhed doctor[/]")
     console.print(f"version       : {__version__}")
+    console.print(f"platform      : {'Android/Termux' if on_termux else 'standard'}")
     console.print(f"primary LLM   : {cfg.primary.model or '-'} @ {cfg.primary.base_url or '-'} "
                   f"({'key set' if cfg.primary.api_key else 'NO KEY'})")
     console.print(f"fallback LLM  : {cfg.fallback.model or '-'} "
@@ -283,6 +285,9 @@ def doctor() -> None:
     miss = reg.missing_binaries()
     if miss:
         console.print(f"[yellow]missing bins[/] : {', '.join(miss)}")
+    if on_termux:
+        console.print("[dim]Android: MCP mode is unavailable here; use `nirbhed run` "
+                      "(agent mode). Guide: docs/android-termux.md[/]")
 
 
 if __name__ == "__main__":

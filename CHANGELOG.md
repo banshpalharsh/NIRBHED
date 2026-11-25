@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.1 — 2026-11-25
+
+### Added — Android / Termux support
+- **`scripts/termux-setup.sh`** — one-command Android setup (Python, git, Nirbhed
+  agent mode, available security tools). Re-runnable; never fails the whole setup
+  over one missing optional tool.
+- **`docs/android-termux.md`** — full A-to-Z guide: install Termux (F-Droid, not
+  Play Store), setup, API key, running, opening the dashboard in the phone
+  browser, wake-lock, limitations (no MCP/root tools), and troubleshooting.
+- `nirbhed doctor` now detects Termux and prints a platform line + Android hint.
+
+No separate app/APK: agent mode is the same package run in Termux (the correct way
+to run CLI security tooling on Android). MCP mode remains desktop-only.
+
 ## 0.3.0 — 2026-11-25
 
 ### Added — interactivity & authenticated testing (parity with / beyond ARTEX)
