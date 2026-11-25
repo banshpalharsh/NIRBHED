@@ -1,0 +1,14 @@
+{
+  "//": "Add this block to Claude Desktop > Settings > Developer > Edit Config.",
+  "//2": "No API key needed here: Claude Desktop IS the LLM brain. Noctyx just exposes the toolbelt over MCP (stdio).",
+  "mcpServers": {
+    "noctyx": {
+      "command": "noctyx",
+      "args": ["mcp"],
+      "env": {
+        "NOCTYX_SCOPE": "example.com,*.example.com",
+        "NOCTYX_APPROVAL": "balanced"
+      }
+    }
+  }
+}

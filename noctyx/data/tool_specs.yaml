@@ -1,0 +1,573 @@
+# Noctyx declarative tool catalog.
+# Add a tool = add a block here (no Python needed). Each becomes callable in both
+# MCP mode and agent mode, with scope-gating, caching, distillation and evidence
+# applied automatically. {target} is substituted; {extra} appends raw flags
+# (shlex-split, no shell); {wordlist} etc. use the declared default.
+#
+# tiers: recon (passive) | active (non-destructive) | exploit (intrusive) | destructive
+# salience: regexes of high-signal lines kept when distilling this tool's output.
+
+tools:
+  # ── network reconnaissance & scanning ─────────────────────────────────────
+  - name: nmap_quick
+    category: network
+    tier: active
+    binary: nmap
+    desc: "Top-1000 TCP scan with service/version detection"
+    cmd: ["nmap", "-Pn", "-sV", "--top-ports", "1000", "{extra}", "{target}"]
+    salience: ['\d+/(tcp|udp)', "open", "service", "Nmap scan report"]
+    timeout: 600
+    params: {target: {required: true, help: "host or IP"}, extra: {}}
+
+  - name: nmap_full
+    category: network
+    tier: active
+    binary: nmap
+    desc: "All-ports TCP scan with default scripts + version detection"
+    cmd: ["nmap", "-Pn", "-sV", "-sC", "-p-", "{extra}", "{target}"]
+    salience: ['\d+/(tcp|udp)', "open", "service", "\\|"]
+    timeout: 1800
+    params: {target: {required: true}, extra: {}}
+
+  - name: nmap_vuln
+    category: network
+    tier: exploit
+    binary: nmap
+    desc: "NSE vuln scripts against open services"
+    cmd: ["nmap", "-Pn", "-sV", "--script", "vuln", "{extra}", "{target}"]
+    salience: ["CVE-", "VULNERABLE", "State:", '\d+/(tcp|udp)']
+    timeout: 1800
+    params: {target: {required: true}, extra: {}}
+
+  - name: rustscan
+    category: network
+    tier: active
+    binary: rustscan
+    desc: "Very fast port discovery (all ports) feeding into nmap"
+    cmd: ["rustscan", "-a", "{target}", "{extra}"]
+    salience: ["Open", '\d+/(tcp|udp)']
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: masscan
+    category: network
+    tier: active
+    binary: masscan
+    desc: "Internet-scale async port scanner"
+    cmd: ["masscan", "{target}", "-p1-65535", "--rate", "1000", "{extra}"]
+    salience: ["open", "Discovered"]
+    timeout: 1200
+    params: {target: {required: true}, extra: {}}
+
+  - name: masscan_top
+    category: network
+    tier: active
+    binary: masscan
+    desc: "Masscan of common ports at a polite rate"
+    cmd: ["masscan", "{target}", "-p80,443,8080,8443,22,21,25,3389,3306,5432,6379", "--rate", "500", "{extra}"]
+    salience: ["open", "Discovered"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: netexec_smb
+    category: network
+    tier: exploit
+    binary: nxc
+    desc: "NetExec SMB enumeration / auth checks"
+    cmd: ["nxc", "smb", "{target}", "{extra}"]
+    salience: ["\\[\\+\\]", "\\[-\\]", "SMB", "Pwn3d", "signing"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  # ── dns / subdomain / osint ────────────────────────────────────────────────
+  - name: subfinder
+    category: osint
+    tier: recon
+    binary: subfinder
+    desc: "Passive subdomain enumeration"
+    cmd: ["subfinder", "-silent", "-d", "{target}", "{extra}"]
+    salience: ['\b[a-z0-9.-]+\.[a-z]{2,}\b']
+    timeout: 300
+    params: {target: {required: true, help: "root domain"}, extra: {}}
+
+  - name: amass_enum
+    category: osint
+    tier: recon
+    binary: amass
+    desc: "Amass passive subdomain/asset enumeration"
+    cmd: ["amass", "enum", "-passive", "-d", "{target}", "{extra}"]
+    salience: ['\b[a-z0-9.-]+\.[a-z]{2,}\b']
+    timeout: 900
+    params: {target: {required: true}, extra: {}}
+
+  - name: dnsx
+    category: osint
+    tier: recon
+    binary: dnsx
+    desc: "Resolve/validate hosts and pull DNS records"
+    cmd: ["dnsx", "-silent", "-a", "-resp", "{extra}"]
+    salience: ['\b(\d{1,3}\.){3}\d{1,3}\b', "\\["]
+    timeout: 300
+    params: {target: {help: "unused; pipe hosts via extra -l file"}, extra: {}}
+
+  - name: whois
+    category: osint
+    tier: recon
+    binary: whois
+    desc: "WHOIS registration lookup"
+    cmd: ["whois", "{target}"]
+    salience: ["Registrar", "Creation", "Name Server", "Org", "CIDR", "NetRange"]
+    timeout: 60
+    params: {target: {required: true}}
+
+  - name: dig
+    category: osint
+    tier: recon
+    binary: dig
+    desc: "DNS query (ANY/A/MX/TXT/NS)"
+    cmd: ["dig", "+nocmd", "{target}", "{extra}", "+noall", "+answer"]
+    salience: ["IN", "\\bA\\b", "MX", "TXT", "NS", "CNAME"]
+    timeout: 60
+    params: {target: {required: true}, extra: {default: "ANY"}}
+
+  - name: theharvester
+    category: osint
+    tier: recon
+    binary: theHarvester
+    desc: "Emails, hosts and names from public sources"
+    cmd: ["theHarvester", "-d", "{target}", "-b", "all", "{extra}"]
+    salience: ["@", '\b[a-z0-9.-]+\.[a-z]{2,}\b']
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: sherlock
+    category: osint
+    tier: recon
+    binary: sherlock
+    desc: "Hunt a username across social networks"
+    cmd: ["sherlock", "{target}", "--print-found", "{extra}"]
+    salience: ["\\[\\+\\]", "https?://"]
+    timeout: 600
+    params: {target: {required: true, help: "username"}, extra: {}}
+
+  # ── web application testing ────────────────────────────────────────────────
+  - name: httpx
+    category: web
+    tier: recon
+    binary: httpx
+    desc: "Probe hosts for live HTTP(S), titles, status, tech"
+    cmd: ["httpx", "-silent", "-title", "-status-code", "-tech-detect", "-u", "{target}", "{extra}"]
+    salience: ["https?://", '\[\d{3}\]', "\\["]
+    timeout: 300
+    params: {target: {required: true}, extra: {}}
+
+  - name: katana
+    category: web
+    tier: active
+    binary: katana
+    desc: "Crawl a site and enumerate endpoints/URLs"
+    cmd: ["katana", "-silent", "-u", "{target}", "{extra}"]
+    salience: ["https?://"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: gau
+    category: web
+    tier: recon
+    binary: gau
+    desc: "Fetch known URLs from Wayback/CommonCrawl/OTX"
+    cmd: ["gau", "{target}", "{extra}"]
+    salience: ["https?://", '\?', "="]
+    timeout: 300
+    params: {target: {required: true}, extra: {}}
+
+  - name: waybackurls
+    category: web
+    tier: recon
+    binary: waybackurls
+    desc: "Historical URLs from the Wayback Machine"
+    cmd: ["waybackurls", "{target}"]
+    salience: ["https?://", '\?', "="]
+    timeout: 300
+    params: {target: {required: true}}
+
+  - name: nuclei
+    category: web
+    tier: active
+    binary: nuclei
+    desc: "Template-based vulnerability/misconfig scanner (CVEs, exposures, takeovers)"
+    cmd: ["nuclei", "-silent", "-u", "{target}", "{extra}"]
+    salience: ['\[(critical|high|medium|low|info)\]', "CVE-", "https?://", "\\["]
+    timeout: 1200
+    params: {target: {required: true}, extra: {}}
+
+  - name: nuclei_severity
+    category: web
+    tier: active
+    binary: nuclei
+    desc: "Nuclei limited to high+critical severity (fast, high-signal)"
+    cmd: ["nuclei", "-silent", "-severity", "critical,high", "-u", "{target}", "{extra}"]
+    salience: ['\[(critical|high)\]', "CVE-"]
+    timeout: 900
+    params: {target: {required: true}, extra: {}}
+
+  - name: gobuster_dir
+    category: web
+    tier: active
+    binary: gobuster
+    desc: "Directory/file brute force"
+    cmd: ["gobuster", "dir", "-q", "-u", "{target}", "-w", "{wordlist}", "{extra}"]
+    salience: ['Status:\s*\d{3}', '\(Status:', "/"]
+    timeout: 900
+    params:
+      target: {required: true}
+      wordlist: {default: "/usr/share/wordlists/dirb/common.txt"}
+      extra: {}
+
+  - name: feroxbuster
+    category: web
+    tier: active
+    binary: feroxbuster
+    desc: "Recursive content discovery"
+    cmd: ["feroxbuster", "-u", "{target}", "-w", "{wordlist}", "--silent", "{extra}"]
+    salience: ['\b[2345]\d\d\b', "https?://"]
+    timeout: 900
+    params:
+      target: {required: true}
+      wordlist: {default: "/usr/share/wordlists/dirb/common.txt"}
+      extra: {}
+
+  - name: ffuf
+    category: web
+    tier: active
+    binary: ffuf
+    desc: "Fast web fuzzer (dirs, params, vhosts). Put FUZZ in the URL."
+    cmd: ["ffuf", "-u", "{target}", "-w", "{wordlist}", "-mc", "200,204,301,302,307,401,403", "-s", "{extra}"]
+    salience: ['\b[2345]\d\d\b', "FUZZ", "/"]
+    timeout: 900
+    params:
+      target: {required: true, help: "URL containing FUZZ"}
+      wordlist: {default: "/usr/share/wordlists/dirb/common.txt"}
+      extra: {}
+
+  - name: sqlmap
+    category: web
+    tier: exploit
+    binary: sqlmap
+    desc: "Automated SQL injection detection + exploitation"
+    cmd: ["sqlmap", "-u", "{target}", "--batch", "{extra}"]
+    salience: ["injectable", "parameter", "DBMS", "payload", "available databases", "back-end"]
+    timeout: 1800
+    params: {target: {required: true}, extra: {}}
+
+  - name: dalfox
+    category: web
+    tier: exploit
+    binary: dalfox
+    desc: "XSS scanner/parameter analysis"
+    cmd: ["dalfox", "url", "{target}", "{extra}"]
+    salience: ["\\[POC\\]", "\\[V\\]", "\\[G\\]", "triggered", "XSS"]
+    timeout: 900
+    params: {target: {required: true}, extra: {}}
+
+  - name: wpscan
+    category: web
+    tier: active
+    binary: wpscan
+    desc: "WordPress vulnerability scanner"
+    cmd: ["wpscan", "--url", "{target}", "--no-banner", "{extra}"]
+    salience: ["\\[!\\]", "\\[\\+\\]", "vulnerab", "version", "plugin", "theme"]
+    timeout: 900
+    params: {target: {required: true}, extra: {}}
+
+  - name: nikto
+    category: web
+    tier: active
+    binary: nikto
+    desc: "Web server misconfiguration/known-issue scanner"
+    cmd: ["nikto", "-h", "{target}", "{extra}"]
+    salience: ["\\+ ", "OSVDB", "CVE-", "header", "cookie"]
+    timeout: 1200
+    params: {target: {required: true}, extra: {}}
+
+  - name: wafw00f
+    category: web
+    tier: recon
+    binary: wafw00f
+    desc: "Fingerprint a Web Application Firewall"
+    cmd: ["wafw00f", "{target}", "{extra}"]
+    salience: ["is behind", "WAF", "No WAF"]
+    timeout: 120
+    params: {target: {required: true}, extra: {}}
+
+  - name: whatweb
+    category: web
+    tier: recon
+    binary: whatweb
+    desc: "Web technology fingerprinting"
+    cmd: ["whatweb", "{target}", "{extra}"]
+    salience: ["\\[", "HTTPServer", "Title", "Country", "IP"]
+    timeout: 120
+    params: {target: {required: true}, extra: {}}
+
+  - name: testssl
+    category: web
+    tier: recon
+    binary: testssl.sh
+    desc: "TLS/SSL configuration and vulnerability check"
+    cmd: ["testssl.sh", "{target}", "{extra}"]
+    salience: ["VULNERABLE", "offered", "NOT ok", "CVE-", "weak"]
+    timeout: 900
+    params: {target: {required: true}, extra: {}}
+
+  # ── authentication & password ──────────────────────────────────────────────
+  - name: hydra
+    category: auth
+    tier: exploit
+    binary: hydra
+    desc: "Network login brute-forcer (ssh/ftp/http-form/etc). Target like ssh://host"
+    cmd: ["hydra", "{extra}", "{target}"]
+    salience: ["login:", "password:", '\[\d+\]\[', "valid"]
+    timeout: 1800
+    params:
+      target: {required: true, help: "service://host"}
+      extra: {help: "-L users.txt -P pass.txt etc"}
+
+  - name: medusa
+    category: auth
+    tier: exploit
+    binary: medusa
+    desc: "Parallel network login brute-forcer"
+    cmd: ["medusa", "-h", "{target}", "{extra}"]
+    salience: ["ACCOUNT FOUND", "SUCCESS", "password"]
+    timeout: 1800
+    params: {target: {required: true}, extra: {}}
+
+  - name: john
+    category: auth
+    tier: exploit
+    binary: john
+    desc: "John the Ripper password cracking"
+    cmd: ["john", "{extra}", "{target}"]
+    salience: ["password", "cracked", "\\(", "Loaded"]
+    timeout: 1800
+    params:
+      target: {required: true, help: "hash file"}
+      extra: {help: "--wordlist=... --format=..."}
+
+  - name: hashcat
+    category: auth
+    tier: exploit
+    binary: hashcat
+    desc: "GPU-accelerated hash cracking"
+    cmd: ["hashcat", "{extra}", "{target}"]
+    salience: ["Status", "Recovered", "Cracked", ":"]
+    timeout: 3600
+    params:
+      target: {required: true, help: "hash file"}
+      extra: {help: "-m <mode> -a 0 wordlist.txt"}
+
+  - name: hashid
+    category: auth
+    tier: recon
+    binary: hashid
+    desc: "Identify the type of a hash"
+    cmd: ["hashid", "{target}", "{extra}"]
+    salience: ["\\[\\+\\]", "Hashcat", "John"]
+    timeout: 30
+    params: {target: {required: true, help: "hash string or file"}, extra: {}}
+
+  - name: evilwinrm
+    category: auth
+    tier: exploit
+    binary: evil-winrm
+    desc: "WinRM shell for post-auth Windows access"
+    cmd: ["evil-winrm", "-i", "{target}", "{extra}"]
+    salience: ["\\*Evil-WinRM\\*", "PS ", "Error"]
+    timeout: 300
+    params: {target: {required: true}, extra: {help: "-u user -p pass"}}
+
+  # ── binary analysis & reverse engineering ──────────────────────────────────
+  - name: file_id
+    category: binary
+    tier: recon
+    binary: file
+    desc: "Identify a file's type/format"
+    cmd: ["file", "{target}"]
+    salience: [":"]
+    timeout: 60
+    params: {target: {required: true}}
+
+  - name: strings
+    category: binary
+    tier: recon
+    binary: strings
+    desc: "Extract printable strings from a binary"
+    cmd: ["strings", "-n", "6", "{target}", "{extra}"]
+    salience: ["http", "key", "pass", "flag", "/bin", "token", "secret"]
+    timeout: 120
+    params: {target: {required: true}, extra: {}}
+
+  - name: binwalk
+    category: binary
+    tier: recon
+    binary: binwalk
+    desc: "Firmware/embedded file analysis and extraction"
+    cmd: ["binwalk", "{extra}", "{target}"]
+    salience: ["0x", "filesystem", "compressed", "signature", "LZMA", "Squashfs"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: radare2
+    category: binary
+    tier: recon
+    binary: r2
+    desc: "Run radare2 analysis commands non-interactively (-qc)"
+    cmd: ["r2", "-q", "-c", "{extra}", "{target}"]
+    salience: ["0x", "fcn", "sym", "call", "push"]
+    timeout: 300
+    params:
+      target: {required: true}
+      extra: {default: "aaa; afl", help: "r2 command string"}
+
+  - name: objdump
+    category: binary
+    tier: recon
+    binary: objdump
+    desc: "Disassemble / dump headers of an object or binary"
+    cmd: ["objdump", "{extra}", "{target}"]
+    salience: ["<", ">", "0x", ".text", ".data", "call"]
+    timeout: 120
+    params: {target: {required: true}, extra: {default: "-d"}}
+
+  - name: checksec
+    category: binary
+    tier: recon
+    binary: checksec
+    desc: "Check binary hardening (NX, PIE, canary, RELRO)"
+    cmd: ["checksec", "--file={target}"]
+    salience: ["NX", "PIE", "Canary", "RELRO", "FORTIFY"]
+    timeout: 60
+    params: {target: {required: true}}
+
+  - name: exiftool
+    category: forensics
+    tier: recon
+    binary: exiftool
+    desc: "Read file/image metadata (EXIF/GPS/author)"
+    cmd: ["exiftool", "{target}", "{extra}"]
+    salience: [":", "GPS", "Author", "Software", "Create", "Comment"]
+    timeout: 120
+    params: {target: {required: true}, extra: {}}
+
+  - name: steghide_info
+    category: forensics
+    tier: recon
+    binary: steghide
+    desc: "Inspect a file for embedded steghide data"
+    cmd: ["steghide", "info", "{target}", "{extra}"]
+    salience: ["embedded", "capacity", "encrypted", "format"]
+    timeout: 120
+    params: {target: {required: true}, extra: {}}
+
+  - name: foremost
+    category: forensics
+    tier: recon
+    binary: foremost
+    desc: "Carve files out of a disk image/blob"
+    cmd: ["foremost", "{extra}", "-i", "{target}"]
+    salience: ["Processing", "Found", "jpg", "png", "zip", "pdf"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  # ── cloud & container ──────────────────────────────────────────────────────
+  - name: trivy_image
+    category: cloud
+    tier: recon
+    binary: trivy
+    desc: "Scan a container image for CVEs/misconfig/secrets"
+    cmd: ["trivy", "image", "--quiet", "{target}", "{extra}"]
+    salience: ["CRITICAL", "HIGH", "CVE-", "Total:"]
+    timeout: 900
+    params: {target: {required: true, help: "image ref"}, extra: {}}
+
+  - name: trivy_fs
+    category: cloud
+    tier: recon
+    binary: trivy
+    desc: "Scan a filesystem/repo path for vulns and secrets"
+    cmd: ["trivy", "fs", "--quiet", "{target}", "{extra}"]
+    salience: ["CRITICAL", "HIGH", "CVE-", "secret", "Total:"]
+    timeout: 900
+    params: {target: {required: true, help: "path"}, extra: {}}
+
+  - name: prowler
+    category: cloud
+    tier: recon
+    binary: prowler
+    desc: "Cloud security posture assessment (AWS/Azure/GCP)"
+    cmd: ["prowler", "{target}", "{extra}"]
+    salience: ["FAIL", "PASS", "CRITICAL", "HIGH", "check"]
+    timeout: 1800
+    params: {target: {required: true, default: "aws", help: "provider"}, extra: {}}
+
+  - name: scoutsuite
+    category: cloud
+    tier: recon
+    binary: scout
+    desc: "Multi-cloud security auditing (Scout Suite)"
+    cmd: ["scout", "{target}", "{extra}"]
+    salience: ["WARNING", "DANGER", "finding", "rule"]
+    timeout: 1800
+    params: {target: {required: true, default: "aws"}, extra: {}}
+
+  - name: kubehunter
+    category: cloud
+    tier: active
+    binary: kube-hunter
+    desc: "Hunt for Kubernetes cluster weaknesses"
+    cmd: ["kube-hunter", "{extra}"]
+    salience: ["Vulnerabilities", "CVE-", "KHV", "Open"]
+    timeout: 900
+    params: {target: {help: "unused"}, extra: {default: "--remote"}}
+
+  - name: kubebench
+    category: cloud
+    tier: recon
+    binary: kube-bench
+    desc: "CIS Kubernetes benchmark checks"
+    cmd: ["kube-bench", "{extra}"]
+    salience: ["\\[FAIL\\]", "\\[WARN\\]", "\\[PASS\\]"]
+    timeout: 600
+    params: {target: {help: "unused"}, extra: {}}
+
+  # ── fuzzing / params / discovery helpers ───────────────────────────────────
+  - name: paramspider
+    category: web
+    tier: recon
+    binary: paramspider
+    desc: "Mine parameter-bearing URLs for a domain"
+    cmd: ["paramspider", "-d", "{target}", "{extra}"]
+    salience: ['\?', "=", "https?://"]
+    timeout: 300
+    params: {target: {required: true}, extra: {}}
+
+  - name: arjun
+    category: web
+    tier: active
+    binary: arjun
+    desc: "Discover hidden HTTP parameters"
+    cmd: ["arjun", "-u", "{target}", "{extra}"]
+    salience: ["parameter", "found", "\\["]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
+
+  - name: crlfuzz
+    category: web
+    tier: exploit
+    binary: crlfuzz
+    desc: "Scan for CRLF injection"
+    cmd: ["crlfuzz", "-u", "{target}", "{extra}"]
+    salience: ["VLN", "vulnerable", "https?://"]
+    timeout: 600
+    params: {target: {required: true}, extra: {}}
